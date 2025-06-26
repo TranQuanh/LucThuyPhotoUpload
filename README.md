@@ -40,3 +40,4 @@ npm start
 ## 5. Tài khoản mẫu
 - marketing1 / 123456 (role: marketing)
 - sale1 / 123456 (role: sale) # LucThuyPhotoUpload
+# LucThuyPhotoUpload
