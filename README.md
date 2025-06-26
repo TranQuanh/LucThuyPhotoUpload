@@ -41,3 +41,4 @@ npm start
 - marketing1 / 123456 (role: marketing)
 - sale1 / 123456 (role: sale) # LucThuyPhotoUpload
 # LucThuyPhotoUpload
+# LucThuyPhotoUpload
