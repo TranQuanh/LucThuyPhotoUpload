@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import fsPromises from 'fs/promises';
+import archiver from 'archiver';
 
 const { Pool } = pg;
 const app = express();
@@ -115,6 +116,75 @@ app.get('/api/photos/:folder', authenticateToken, async (req, res) => {
   const folderId = folderResult.rows[0].id;
   const photos = await pool.query('SELECT * FROM photos WHERE folder_id = $1 ORDER BY uploaded_at DESC', [folderId]);
   res.json(photos.rows);
+});
+
+// API kiểm tra đăng nhập, trả về role nếu hợp lệ
+app.get('/api/me', authenticateToken, async (req, res) => {
+  res.json({ role: req.user.role });
+});
+
+// API logout: xóa cookie token
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('token', { httpOnly: true, sameSite: 'lax' });
+  res.json({ message: 'Đã logout' });
+});
+
+// Đổi tên folder
+app.post('/api/folder/rename', authenticateToken, authorizeRole('marketing'), async (req, res) => {
+  const { oldName, newName } = req.body;
+  if (!oldName || !newName) return res.status(400).json({ message: 'Thiếu tên folder' });
+  // Đổi tên trong DB
+  await pool.query('UPDATE folders SET name = $1 WHERE name = $2', [newName, oldName]);
+  // Đổi tên thư mục vật lý
+  const oldPath = path.join('uploads', oldName);
+  const newPath = path.join('uploads', newName);
+  if (fs.existsSync(oldPath)) fs.renameSync(oldPath, newPath);
+  res.json({ message: 'Đổi tên thành công!' });
+});
+
+// Xóa folder
+app.delete('/api/folder/:name', authenticateToken, authorizeRole('marketing'), async (req, res) => {
+  const { name } = req.params;
+  if (!name) return res.status(400).json({ message: 'Thiếu tên folder' });
+  // Xóa trong DB (cascade ảnh)
+  await pool.query('DELETE FROM folders WHERE name = $1', [name]);
+  // Xóa thư mục vật lý
+  const folderPath = path.join('uploads', name);
+  if (fs.existsSync(folderPath)) fs.rmSync(folderPath, { recursive: true, force: true });
+  res.json({ message: 'Xóa folder thành công!' });
+});
+
+// Xóa ảnh
+app.delete('/api/photo/:id', authenticateToken, authorizeRole('marketing'), async (req, res) => {
+  const { id } = req.params;
+  // Lấy thông tin ảnh từ DB
+  const photoResult = await pool.query('SELECT * FROM photos WHERE id = $1', [id]);
+  if (photoResult.rows.length === 0) return res.status(404).json({ message: 'Ảnh không tồn tại' });
+  const photo = photoResult.rows[0];
+  // Lấy tên folder
+  const folderResult = await pool.query('SELECT name FROM folders WHERE id = $1', [photo.folder_id]);
+  if (folderResult.rows.length === 0) return res.status(404).json({ message: 'Folder không tồn tại' });
+  const folderName = folderResult.rows[0].name;
+  // Xóa file vật lý
+  const filePath = path.join('uploads', folderName, photo.filename);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  // Xóa DB
+  await pool.query('DELETE FROM photos WHERE id = $1', [id]);
+  res.json({ message: 'Đã xóa ảnh' });
+});
+
+// Tải folder (zip)
+app.get('/api/folder/:name/download', authenticateToken, async (req, res) => {
+  const { name } = req.params;
+  if (!name) return res.status(400).json({ message: 'Thiếu tên folder' });
+  const folderPath = path.join('uploads', name);
+  if (!fs.existsSync(folderPath)) return res.status(404).json({ message: 'Folder không tồn tại' });
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${name}.zip"`);
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  archive.directory(folderPath, false);
+  archive.finalize();
+  archive.pipe(res);
 });
 
 // Trả file ảnh
