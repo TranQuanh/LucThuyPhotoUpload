@@ -9,6 +9,7 @@ import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import fsPromises from 'fs/promises';
 import archiver from 'archiver';
+import { v4 as uuidv4 } from 'uuid';
 
 const { Pool } = pg;
 const app = express();
@@ -83,21 +84,19 @@ app.post('/api/upload', authenticateToken, authorizeRole('marketing'), upload.ar
   const { product } = req.body;
   if (!product) return res.status(400).json({ message: 'Thiếu tên product' });
   const userId = req.user.id;
-  // Tìm product theo id (nếu truyền product là id)
   let productId = product;
-  // Nếu product là id, kiểm tra tồn tại
   const productResult = await pool.query('SELECT id FROM products WHERE id = $1', [product]);
   if (productResult.rows.length === 0) {
     return res.status(400).json({ message: 'Product không tồn tại' });
   }
-  // Di chuyển và lưu từng file
   for (const file of req.files) {
     const oldPath = path.join('uploads', 'tmp', file.filename);
     const newDir = path.join('uploads', productId);
     const newPath = path.join(newDir, file.filename);
     await fsPromises.mkdir(newDir, { recursive: true });
     await fsPromises.rename(oldPath, newPath);
-    await pool.query('INSERT INTO photos (filename, product_id, uploaded_by) VALUES ($1, $2, $3)', [file.filename, productId, userId]);
+    const id = uuidv4();
+    await pool.query('INSERT INTO photos (id, filename, product_id, uploaded_by) VALUES ($1, $2, $3, $4)', [id, file.filename, productId, userId]);
   }
   res.json({ message: 'Upload thành công!' });
 });
@@ -107,11 +106,11 @@ app.get('/api/products', authenticateToken, async (req, res) => {
   const products = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
   res.json(products.rows);
 });
-app.get('/api/photos/:product', authenticateToken, async (req, res) => {
-  const { product } = req.params;
-  const productResult = await pool.query('SELECT id FROM products WHERE name = $1', [product]);
+app.get('/api/photos/:productId', authenticateToken, async (req, res) => {
+  const { productId } = req.params;
+  // Kiểm tra sản phẩm tồn tại
+  const productResult = await pool.query('SELECT id FROM products WHERE id = $1', [productId]);
   if (productResult.rows.length === 0) return res.json([]);
-  const productId = productResult.rows[0].id;
   const photos = await pool.query('SELECT * FROM photos WHERE product_id = $1 ORDER BY uploaded_at DESC', [productId]);
   res.json(photos.rows);
 });
@@ -161,11 +160,17 @@ app.delete('/api/photo/:id', authenticateToken, authorizeRole('marketing'), asyn
   const photo = photoResult.rows[0];
   // Lấy tên product
   const productResult = await pool.query('SELECT name FROM products WHERE id = $1', [photo.product_id]);
-  if (productResult.rows.length === 0) return res.status(404).json({ message: 'Product không tồn tại' });
+  if (productResult.rows.length === 0) {
+    // Không tìm thấy product, chỉ xóa DB
+    await pool.query('DELETE FROM photos WHERE id = $1', [id]);
+    return res.json({ message: 'Đã xóa ảnh (không tìm thấy thư mục vật lý)' });
+  }
   const productName = productResult.rows[0].name;
-  // Xóa file vật lý
-  const filePath = path.join('uploads', productName, photo.filename);
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  if (productName) {
+    // Xóa file vật lý nếu có productName
+    const filePath = path.join('uploads', productName, photo.filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
   // Xóa DB
   await pool.query('DELETE FROM photos WHERE id = $1', [id]);
   res.json({ message: 'Đã xóa ảnh' });
@@ -186,7 +191,13 @@ app.get('/api/product/:name/download', authenticateToken, async (req, res) => {
 });
 
 // Trả file ảnh
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const uploadsPath = path.join(process.cwd(), 'uploads');
+console.log('Serving static from:', uploadsPath);
+
+app.use('/uploads', (req, res, next) => {
+  console.log('Static file request:', path.join(uploadsPath, req.path));
+  next();
+}, express.static(uploadsPath));
 
 // Lấy danh sách order theo phone
 app.get('/api/orders', authenticateToken, async (req, res) => {

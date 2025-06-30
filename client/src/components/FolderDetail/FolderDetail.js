@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import styles from '../Gallery/Gallery.module.css';
+import { useParams, useNavigate } from 'react-router-dom';
 
-function FolderDetail({ folderName: productName, onBack }) {
+function FolderDetail(props) {
+  // Lấy productId từ props hoặc từ URL
+  const params = useParams();
+  const productId = props.productId || params.productId;
+  const navigate = useNavigate();
   const [photos, setPhotos] = useState([]);
   const [menuOpen, setMenuOpen] = useState(null); // id ảnh đang mở menu
   const [preview, setPreview] = useState(null); // ảnh đang xem lớn
+  const [searchTerm, setSearchTerm] = useState(''); // từ khóa tìm kiếm
 
   useEffect(() => {
-    if (productName) {
-      axios.get(`http://localhost:5000/api/photos/${productName}`, { withCredentials: true })
+    if (productId) {
+      axios.get(`http://localhost:5000/api/photos/${productId}`, { withCredentials: true })
         .then(res => setPhotos(res.data));
     }
-  }, [productName]);
+  }, [productId]);
 
   const handleMenuOpen = (id) => setMenuOpen(id);
   const handleMenuClose = () => setMenuOpen(null);
@@ -27,7 +33,7 @@ function FolderDetail({ folderName: productName, onBack }) {
   const handleDownload = async (photo) => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/uploads/${productName}/${photo.filename}`,
+        `http://localhost:5000/uploads/${productId}/${photo.filename}`,
         { responseType: 'blob', withCredentials: true }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -50,16 +56,28 @@ function FolderDetail({ folderName: productName, onBack }) {
     if (e.target === e.currentTarget) setPreview(null);
   };
 
+  // Lọc ảnh theo từ khóa
+  const filteredPhotos = photos.filter(photo =>
+    photo.filename.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div>
-      <button className={styles.backButton} onClick={onBack}>← Quay lại</button>
-      <h3 className={styles.folderTitle}>Ảnh trong sản phẩm: {productName}</h3>
+      <button className={styles.backButton} onClick={() => navigate(-1)}>← Quay lại</button>
+      <h3 className={styles.folderTitle}>Ảnh trong sản phẩm: {productId}</h3>
+      <input
+        type="text"
+        placeholder="Tìm kiếm ảnh theo tên..."
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+        style={{ margin: '10px 0', padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc', width: 250 }}
+      />
       <div className={styles.photoGrid}>
-        {photos.map(photo => (
+        {filteredPhotos.map(photo => (
           <div className={styles.photoItem} key={photo.id}>
             <div style={{ position: 'relative' }}>
               <img
-                src={`http://localhost:5000/uploads/${productName}/${photo.filename}`}
+                src={`http://localhost:5000/uploads/${productId}/${photo.filename}`}
                 alt=""
                 onClick={() => handlePreview(photo)}
                 style={{ cursor: 'pointer' }}
@@ -93,7 +111,7 @@ function FolderDetail({ folderName: productName, onBack }) {
           onClick={closePreview}
         >
           <img
-            src={`http://localhost:5000/uploads/${productName}/${preview.filename}`}
+            src={`http://localhost:5000/uploads/${productId}/${preview.filename}`}
             alt=""
             style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}
           />

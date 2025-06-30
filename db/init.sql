@@ -39,6 +39,6 @@ CREATE TABLE IF NOT EXISTS photos (
     product_id VARCHAR(64) NOT NULL,
     uploaded_by VARCHAR(64),
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_order_detail FOREIGN KEY(product_id) REFERENCES order_details(id) ON DELETE CASCADE,
+    CONSTRAINT fk_product FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
     CONSTRAINT fk_uploaded_by FOREIGN KEY(uploaded_by) REFERENCES users(id) ON DELETE SET NULL
 ); 

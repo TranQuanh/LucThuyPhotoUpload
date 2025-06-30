@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import Login from './components/Login/Login';
 import Upload from './components/Upload/Upload';
 import Gallery from './components/Gallery/Gallery';
 import Sidebar from './components/Sidebar/Sidebar';
+import FolderDetail from './components/FolderDetail/FolderDetail';
 import axios from 'axios';
 
 function App() {
@@ -34,6 +35,8 @@ function App() {
     setRole(null);
     localStorage.removeItem('role');
   };
+
+
 
   return (
     <Router>
@@ -97,6 +100,14 @@ function App() {
               element={
                 role
                   ? <Gallery />
+                  : <Navigate to="/login" />
+              }
+            />
+            <Route
+              path="/gallery/:productId"
+              element={
+                role
+                  ? <FolderDetail />
                   : <Navigate to="/login" />
               }
             />
