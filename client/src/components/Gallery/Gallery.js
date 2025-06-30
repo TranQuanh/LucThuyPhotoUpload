@@ -4,28 +4,31 @@ import styles from './Gallery.module.css';
 import FolderDetail from '../FolderDetail/FolderDetail';
 
 function Gallery() {
-  const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(null); // id folder đang mở menu
-  const [renameId, setRenameId] = useState(null); // id folder đang đổi tên
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(null); // id product đang mở menu
+  const [renameId, setRenameId] = useState(null); // id product đang đổi tên
   const [renameValue, setRenameValue] = useState('');
 
   useEffect(() => {
-    fetchFolders();
+    fetchProducts();
   }, []);
 
-  const fetchFolders = () => {
-    axios.get('http://localhost:5000/api/folders', {
+  const fetchProducts = () => {
+    axios.get('http://localhost:5000/api/products', {
       withCredentials: true
-    }).then(res => setFolders(res.data));
+    }).then(res => {
+      setProducts(res.data);
+      console.log('Products data:', res.data);
+    });
   };
 
-  const handleFolderClick = (folder) => {
-    setSelectedFolder(folder.name);
+  const handleProductClick = (product) => {
+    setSelectedProduct(product.name);
   };
 
   const handleBack = () => {
-    setSelectedFolder(null);
+    setSelectedProduct(null);
   };
 
   // Menu actions
@@ -42,38 +45,38 @@ function Gallery() {
       setRenameId(null);
       return;
     }
-    await axios.post('http://localhost:5000/api/folder/rename', { oldName, newName: renameValue }, { withCredentials: true });
+    await axios.post('http://localhost:5000/api/product/rename', { oldName, newName: renameValue }, { withCredentials: true });
     setRenameId(null);
-    fetchFolders();
+    fetchProducts();
   };
   const handleDelete = async (name) => {
-    if (window.confirm('Bạn có chắc muốn xóa folder này?')) {
-      await axios.delete(`http://localhost:5000/api/folder/${name}`, { withCredentials: true });
-      fetchFolders();
+    if (window.confirm('Bạn có chắc muốn xóa product này?')) {
+      await axios.delete(`http://localhost:5000/api/product/${name}`, { withCredentials: true });
+      fetchProducts();
     }
     setMenuOpen(null);
   };
   const handleDownload = (name) => {
-    window.open(`http://localhost:5000/api/folder/${name}/download`, '_blank');
+    window.open(`http://localhost:5000/api/product/${name}/download`, '_blank');
     setMenuOpen(null);
   };
 
   return (
     <div className={styles.galleryContainer}>
-      <h2>Thư mục ảnh</h2>
-      {!selectedFolder ? (
+      <h2>Sản phẩm ảnh</h2>
+      {!selectedProduct ? (
         <div className={styles.folderGrid}>
-          {folders.map(folder => (
+          {products.map(product => (
             <div
-              key={folder.id}
+              key={product.id}
               className={styles.folderCard}
-              onClick={() => renameId !== folder.id && handleFolderClick(folder)}
+              onClick={() => renameId !== product.id && handleProductClick(product)}
             >
               <div className={styles.folderLeft}>
-                <div className={styles.folderIcon}>📁</div>
+                <div className={styles.folderIcon}>📦</div>
                 <div className={styles.folderInfo}>
-                  {renameId === folder.id ? (
-                    <form onSubmit={e => { e.preventDefault(); handleRenameSubmit(folder.id, folder.name); }}>
+                  {renameId === product.id ? (
+                    <form onSubmit={e => { e.preventDefault(); handleRenameSubmit(product.id, product.name); }}>
                       <input
                         value={renameValue}
                         onChange={e => setRenameValue(e.target.value)}
@@ -84,30 +87,30 @@ function Gallery() {
                     </form>
                   ) : (
                     <>
-                      <div className={styles.folderName}>{folder.name}</div>
-                      <div className={styles.folderSubtitle}>Trên Drive của tôi</div>
+                      <div className={styles.folderName}>{product.id}</div>
+                      <div className={styles.folderSubtitle}>Sản phẩm</div>
                     </>
                   )}
                 </div>
               </div>
               <button
                 className={styles.menuButton}
-                onClick={e => { e.stopPropagation(); handleMenuOpen(folder.id); }}
+                onClick={e => { e.stopPropagation(); handleMenuOpen(product.id); }}
               >
                 ⋮
               </button>
-              {menuOpen === folder.id && (
+              {menuOpen === product.id && (
                 <div className={styles.menuPopup} onMouseLeave={handleMenuClose}>
-                  <button className={styles.menuItem} onClick={() => handleRename(folder.id, folder.name)}>Đổi tên</button>
-                  <button className={styles.menuItem} onClick={() => handleDelete(folder.name)}>Xóa</button>
-                  <button className={styles.menuItem} onClick={() => handleDownload(folder.name)}>Tải xuống</button>
+                  <button className={styles.menuItem} onClick={() => handleRename(product.id, product.name)}>Đổi tên</button>
+                  <button className={styles.menuItem} onClick={() => handleDelete(product.name)}>Xóa</button>
+                  <button className={styles.menuItem} onClick={() => handleDownload(product.name)}>Tải xuống</button>
                 </div>
               )}
             </div>
           ))}
         </div>
       ) : (
-        <FolderDetail folderName={selectedFolder} onBack={handleBack} />
+        <FolderDetail folderName={selectedProduct} onBack={handleBack} />
       )}
     </div>
   );

@@ -80,41 +80,39 @@ app.post('/api/login', async (req, res) => {
 
 // Upload ảnh (chỉ marketing)
 app.post('/api/upload', authenticateToken, authorizeRole('marketing'), upload.array('photos', 10), async (req, res) => {
-  const { folder } = req.body;
-  if (!folder) return res.status(400).json({ message: 'Thiếu tên folder' });
+  const { product } = req.body;
+  if (!product) return res.status(400).json({ message: 'Thiếu tên product' });
   const userId = req.user.id;
-  // Tạo folder nếu chưa có
-  let folderId;
-  const folderResult = await pool.query('SELECT id FROM folders WHERE name = $1', [folder]);
-  if (folderResult.rows.length === 0) {
-    const insertFolder = await pool.query('INSERT INTO folders (name) VALUES ($1) RETURNING id', [folder]);
-    folderId = insertFolder.rows[0].id;
-  } else {
-    folderId = folderResult.rows[0].id;
+  // Tìm product theo id (nếu truyền product là id)
+  let productId = product;
+  // Nếu product là id, kiểm tra tồn tại
+  const productResult = await pool.query('SELECT id FROM products WHERE id = $1', [product]);
+  if (productResult.rows.length === 0) {
+    return res.status(400).json({ message: 'Product không tồn tại' });
   }
   // Di chuyển và lưu từng file
   for (const file of req.files) {
     const oldPath = path.join('uploads', 'tmp', file.filename);
-    const newDir = path.join('uploads', folder);
+    const newDir = path.join('uploads', productId);
     const newPath = path.join(newDir, file.filename);
     await fsPromises.mkdir(newDir, { recursive: true });
     await fsPromises.rename(oldPath, newPath);
-    await pool.query('INSERT INTO photos (filename, folder_id, uploaded_by) VALUES ($1, $2, $3)', [file.filename, folderId, userId]);
+    await pool.query('INSERT INTO photos (filename, product_id, uploaded_by) VALUES ($1, $2, $3)', [file.filename, productId, userId]);
   }
   res.json({ message: 'Upload thành công!' });
 });
 
-// Lấy danh sách folder và ảnh
-app.get('/api/folders', authenticateToken, async (req, res) => {
-  const folders = await pool.query('SELECT * FROM folders ORDER BY created_at DESC');
-  res.json(folders.rows);
+// Lấy danh sách product và ảnh
+app.get('/api/products', authenticateToken, async (req, res) => {
+  const products = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
+  res.json(products.rows);
 });
-app.get('/api/photos/:folder', authenticateToken, async (req, res) => {
-  const { folder } = req.params;
-  const folderResult = await pool.query('SELECT id FROM folders WHERE name = $1', [folder]);
-  if (folderResult.rows.length === 0) return res.json([]);
-  const folderId = folderResult.rows[0].id;
-  const photos = await pool.query('SELECT * FROM photos WHERE folder_id = $1 ORDER BY uploaded_at DESC', [folderId]);
+app.get('/api/photos/:product', authenticateToken, async (req, res) => {
+  const { product } = req.params;
+  const productResult = await pool.query('SELECT id FROM products WHERE name = $1', [product]);
+  if (productResult.rows.length === 0) return res.json([]);
+  const productId = productResult.rows[0].id;
+  const photos = await pool.query('SELECT * FROM photos WHERE product_id = $1 ORDER BY uploaded_at DESC', [productId]);
   res.json(photos.rows);
 });
 
@@ -129,12 +127,12 @@ app.post('/api/logout', (req, res) => {
   res.json({ message: 'Đã logout' });
 });
 
-// Đổi tên folder
-app.post('/api/folder/rename', authenticateToken, authorizeRole('marketing'), async (req, res) => {
+// Đổi tên product
+app.post('/api/product/rename', authenticateToken, authorizeRole('marketing'), async (req, res) => {
   const { oldName, newName } = req.body;
-  if (!oldName || !newName) return res.status(400).json({ message: 'Thiếu tên folder' });
+  if (!oldName || !newName) return res.status(400).json({ message: 'Thiếu tên product' });
   // Đổi tên trong DB
-  await pool.query('UPDATE folders SET name = $1 WHERE name = $2', [newName, oldName]);
+  await pool.query('UPDATE products SET name = $1 WHERE name = $2', [newName, oldName]);
   // Đổi tên thư mục vật lý
   const oldPath = path.join('uploads', oldName);
   const newPath = path.join('uploads', newName);
@@ -142,16 +140,16 @@ app.post('/api/folder/rename', authenticateToken, authorizeRole('marketing'), as
   res.json({ message: 'Đổi tên thành công!' });
 });
 
-// Xóa folder
-app.delete('/api/folder/:name', authenticateToken, authorizeRole('marketing'), async (req, res) => {
+// Xóa product
+app.delete('/api/product/:name', authenticateToken, authorizeRole('marketing'), async (req, res) => {
   const { name } = req.params;
-  if (!name) return res.status(400).json({ message: 'Thiếu tên folder' });
+  if (!name) return res.status(400).json({ message: 'Thiếu tên product' });
   // Xóa trong DB (cascade ảnh)
-  await pool.query('DELETE FROM folders WHERE name = $1', [name]);
+  await pool.query('DELETE FROM products WHERE name = $1', [name]);
   // Xóa thư mục vật lý
-  const folderPath = path.join('uploads', name);
-  if (fs.existsSync(folderPath)) fs.rmSync(folderPath, { recursive: true, force: true });
-  res.json({ message: 'Xóa folder thành công!' });
+  const productPath = path.join('uploads', name);
+  if (fs.existsSync(productPath)) fs.rmSync(productPath, { recursive: true, force: true });
+  res.json({ message: 'Xóa product thành công!' });
 });
 
 // Xóa ảnh
@@ -161,34 +159,58 @@ app.delete('/api/photo/:id', authenticateToken, authorizeRole('marketing'), asyn
   const photoResult = await pool.query('SELECT * FROM photos WHERE id = $1', [id]);
   if (photoResult.rows.length === 0) return res.status(404).json({ message: 'Ảnh không tồn tại' });
   const photo = photoResult.rows[0];
-  // Lấy tên folder
-  const folderResult = await pool.query('SELECT name FROM folders WHERE id = $1', [photo.folder_id]);
-  if (folderResult.rows.length === 0) return res.status(404).json({ message: 'Folder không tồn tại' });
-  const folderName = folderResult.rows[0].name;
+  // Lấy tên product
+  const productResult = await pool.query('SELECT name FROM products WHERE id = $1', [photo.product_id]);
+  if (productResult.rows.length === 0) return res.status(404).json({ message: 'Product không tồn tại' });
+  const productName = productResult.rows[0].name;
   // Xóa file vật lý
-  const filePath = path.join('uploads', folderName, photo.filename);
+  const filePath = path.join('uploads', productName, photo.filename);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   // Xóa DB
   await pool.query('DELETE FROM photos WHERE id = $1', [id]);
   res.json({ message: 'Đã xóa ảnh' });
 });
 
-// Tải folder (zip)
-app.get('/api/folder/:name/download', authenticateToken, async (req, res) => {
+// Tải product (zip)
+app.get('/api/product/:name/download', authenticateToken, async (req, res) => {
   const { name } = req.params;
-  if (!name) return res.status(400).json({ message: 'Thiếu tên folder' });
-  const folderPath = path.join('uploads', name);
-  if (!fs.existsSync(folderPath)) return res.status(404).json({ message: 'Folder không tồn tại' });
+  if (!name) return res.status(400).json({ message: 'Thiếu tên product' });
+  const productPath = path.join('uploads', name);
+  if (!fs.existsSync(productPath)) return res.status(404).json({ message: 'Product không tồn tại' });
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', `attachment; filename="${name}.zip"`);
   const archive = archiver('zip', { zlib: { level: 9 } });
-  archive.directory(folderPath, false);
+  archive.directory(productPath, false);
   archive.finalize();
   archive.pipe(res);
 });
 
 // Trả file ảnh
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+// Lấy danh sách order theo phone
+app.get('/api/orders', authenticateToken, async (req, res) => {
+  const { phone } = req.query;
+  if (!phone) return res.status(400).json({ message: 'Thiếu số điện thoại' });
+  const orders = await pool.query('SELECT * FROM orders WHERE phonenumber = $1 ORDER BY created_at DESC', [phone]);
+  res.json(orders.rows);
+});
+
+// Lấy danh sách order_details theo order_id
+app.get('/api/order_details', authenticateToken, async (req, res) => {
+  const { order_id } = req.query;
+  if (!order_id) return res.status(400).json({ message: 'Thiếu order_id' });
+  const details = await pool.query('SELECT * FROM order_details WHERE order_id = $1', [order_id]);
+  res.json(details.rows);
+});
+
+// Lấy thông tin product theo id
+app.get('/api/products/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const product = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+  if (product.rows.length === 0) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+  res.json(product.rows[0]);
+});
 
 app.listen(PORT, () => {
   console.log('Server running on port', PORT);

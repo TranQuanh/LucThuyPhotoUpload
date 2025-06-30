@@ -2,17 +2,17 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import styles from '../Gallery/Gallery.module.css';
 
-function FolderDetail({ folderName, onBack }) {
+function FolderDetail({ folderName: productName, onBack }) {
   const [photos, setPhotos] = useState([]);
   const [menuOpen, setMenuOpen] = useState(null); // id ảnh đang mở menu
   const [preview, setPreview] = useState(null); // ảnh đang xem lớn
 
   useEffect(() => {
-    if (folderName) {
-      axios.get(`http://localhost:5000/api/photos/${folderName}`, { withCredentials: true })
+    if (productName) {
+      axios.get(`http://localhost:5000/api/photos/${productName}`, { withCredentials: true })
         .then(res => setPhotos(res.data));
     }
-  }, [folderName]);
+  }, [productName]);
 
   const handleMenuOpen = (id) => setMenuOpen(id);
   const handleMenuClose = () => setMenuOpen(null);
@@ -27,7 +27,7 @@ function FolderDetail({ folderName, onBack }) {
   const handleDownload = async (photo) => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/uploads/${folderName}/${photo.filename}`,
+        `http://localhost:5000/uploads/${productName}/${photo.filename}`,
         { responseType: 'blob', withCredentials: true }
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -53,13 +53,13 @@ function FolderDetail({ folderName, onBack }) {
   return (
     <div>
       <button className={styles.backButton} onClick={onBack}>← Quay lại</button>
-      <h3 className={styles.folderTitle}>Ảnh trong folder: {folderName}</h3>
+      <h3 className={styles.folderTitle}>Ảnh trong sản phẩm: {productName}</h3>
       <div className={styles.photoGrid}>
         {photos.map(photo => (
           <div className={styles.photoItem} key={photo.id}>
             <div style={{ position: 'relative' }}>
               <img
-                src={`http://localhost:5000/uploads/${folderName}/${photo.filename}`}
+                src={`http://localhost:5000/uploads/${productName}/${photo.filename}`}
                 alt=""
                 onClick={() => handlePreview(photo)}
                 style={{ cursor: 'pointer' }}
@@ -93,7 +93,7 @@ function FolderDetail({ folderName, onBack }) {
           onClick={closePreview}
         >
           <img
-            src={`http://localhost:5000/uploads/${folderName}/${preview.filename}`}
+            src={`http://localhost:5000/uploads/${productName}/${preview.filename}`}
             alt=""
             style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 4px 32px rgba(0,0,0,0.3)' }}
           />

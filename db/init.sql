@@ -1,31 +1,44 @@
--- Tạo database và user
-CREATE DATABASE uploadphoto;
-CREATE USER jeremie WITH ENCRYPTED PASSWORD '20112001';
-GRANT ALL PRIVILEGES ON DATABASE uploadphoto TO jeremie;
+-- Chạy script này sau khi đã chọn database uploadphoto trong DBeaver
 
--- Kết nối vào database uploadphoto trước khi chạy các lệnh sau
-\c uploadphoto;
-
--- Tạo bảng users
+-- Bảng users
 CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
+    id VARCHAR(64) PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('marketing', 'sale'))
 );
 
--- Tạo bảng folders
-CREATE TABLE IF NOT EXISTS folders (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) UNIQUE NOT NULL,
+-- Bảng orders (Đơn hàng)
+CREATE TABLE IF NOT EXISTS orders (
+    id VARCHAR(64) PRIMARY KEY,
+    phonenumber VARCHAR(15),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tạo bảng photos
+-- Bảng products (Sản phẩm/vật tư)
+CREATE TABLE IF NOT EXISTS products (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Bảng order_details (Đơn hàng chi tiết)
+CREATE TABLE IF NOT EXISTS order_details (
+    id VARCHAR(64) PRIMARY KEY,
+    order_id VARCHAR(64) NOT NULL,
+    product_id VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_order FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_product FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+-- Bảng photos
 CREATE TABLE IF NOT EXISTS photos (
-    id SERIAL PRIMARY KEY,
+    id VARCHAR(64) PRIMARY KEY,
     filename VARCHAR(255) NOT NULL,
-    folder_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
-    uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    product_id VARCHAR(64) NOT NULL,
+    uploaded_by VARCHAR(64),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_order_detail FOREIGN KEY(product_id) REFERENCES order_details(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uploaded_by FOREIGN KEY(uploaded_by) REFERENCES users(id) ON DELETE SET NULL
 ); 

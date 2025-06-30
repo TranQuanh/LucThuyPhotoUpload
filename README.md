@@ -13,9 +13,9 @@ psql -U postgres -f db/init.sql
 -- Đăng nhập vào database uploadphoto
 \c uploadphoto;
 -- Thêm user marketing
-INSERT INTO users (username, password, role) VALUES ('marketing1', 'admin', 'marketing');
+INSERT INTO users (id,username, password, role) VALUES ('mark1','marketing1', 'admin', 'marketing');
 -- Thêm user sale
-INSERT INTO users (username, password, role) VALUES ('sale1', 'admin', 'sale');
+INSERT INTO users (id,username, password, role) VALUES ('sal1','sale1', 'admin', 'sale');
 -- (Mật khẩu mẫu: 123456)
 ```
 
