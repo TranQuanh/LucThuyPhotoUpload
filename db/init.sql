@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS products (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(255),
+    group_name VARCHAR(255),
+    product_type VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -37,8 +39,10 @@ CREATE TABLE IF NOT EXISTS photos (
     id VARCHAR(64) PRIMARY KEY,
     filename VARCHAR(255) NOT NULL,
     product_id VARCHAR(64) NOT NULL,
+    order_id VARCHAR(64) NOT NULL,
     uploaded_by VARCHAR(64),
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_product FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
-    CONSTRAINT fk_uploaded_by FOREIGN KEY(uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+    CONSTRAINT fk_uploaded_by FOREIGN KEY(uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_order FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE
 ); 

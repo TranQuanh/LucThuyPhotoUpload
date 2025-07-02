@@ -81,22 +81,45 @@ app.post('/api/login', async (req, res) => {
 
 // Upload ảnh (chỉ marketing)
 app.post('/api/upload', authenticateToken, authorizeRole('marketing'), upload.array('photos', 10), async (req, res) => {
-  const { product } = req.body;
-  if (!product) return res.status(400).json({ message: 'Thiếu tên product' });
+  const { product, products, order_id } = req.body;
   const userId = req.user.id;
-  let productId = product;
-  const productResult = await pool.query('SELECT id FROM products WHERE id = $1', [product]);
-  if (productResult.rows.length === 0) {
-    return res.status(400).json({ message: 'Product không tồn tại' });
+  let productIds = [];
+  if (products) {
+    // Nếu gửi lên là mảng (FormData sẽ là products[])
+    if (Array.isArray(products)) productIds = products;
+    else if (typeof products === 'string') productIds = [products];
+    else productIds = [];
+  } else if (product) {
+    productIds = [product];
+  } else {
+    return res.status(400).json({ message: 'Thiếu sản phẩm' });
+  }
+  // Kiểm tra tồn tại từng product
+  for (const pid of productIds) {
+    const productResult = await pool.query('SELECT id FROM products WHERE id = $1', [pid]);
+    if (productResult.rows.length === 0) {
+      return res.status(400).json({ message: `Product không tồn tại: ${pid}` });
+    }
   }
   for (const file of req.files) {
-    const oldPath = path.join('uploads', 'tmp', file.filename);
-    const newDir = path.join('uploads', productId);
-    const newPath = path.join(newDir, file.filename);
-    await fsPromises.mkdir(newDir, { recursive: true });
-    await fsPromises.rename(oldPath, newPath);
-    const id = uuidv4();
-    await pool.query('INSERT INTO photos (id, filename, product_id, uploaded_by) VALUES ($1, $2, $3, $4)', [id, file.filename, productId, userId]);
+    for (const pid of productIds) {
+      const oldPath = path.join('uploads', 'tmp', file.filename);
+      const newDir = path.join('uploads', pid);
+      const newPath = path.join(newDir, file.filename);
+      await fsPromises.mkdir(newDir, { recursive: true });
+      await fsPromises.copyFile(oldPath, newPath);
+      const id = uuidv4();
+      try {
+        await pool.query(
+          'INSERT INTO photos (id, filename, product_id, order_id, uploaded_by) VALUES ($1, $2, $3, $4, $5)',
+          [id, file.filename, pid, order_id || null, userId]
+        );
+      } catch (err) {
+        console.error('Lỗi insert vào photos:', err);
+        return res.status(500).json({ message: 'Lỗi lưu ảnh vào database', error: err.message });
+      }
+    }
+    await fsPromises.unlink(path.join('uploads', 'tmp', file.filename));
   }
   res.json({ message: 'Upload thành công!' });
 });
@@ -221,6 +244,15 @@ app.get('/api/products/:id', authenticateToken, async (req, res) => {
   const product = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
   if (product.rows.length === 0) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
   res.json(product.rows[0]);
+});
+
+// Tìm kiếm đơn hàng theo order_id
+app.get('/api/order/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: 'Thiếu order_id' });
+  const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+  if (order.rows.length === 0) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+  res.json(order.rows[0]);
 });
 
 app.listen(PORT, () => {

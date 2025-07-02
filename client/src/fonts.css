@@ -1,0 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+body, html, #root, input, button, textarea, select {
+  font-family: 'Be Vietnam Pro', Arial, Helvetica, sans-serif !important;
+} 

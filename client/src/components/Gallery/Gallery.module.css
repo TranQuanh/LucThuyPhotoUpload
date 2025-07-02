@@ -132,9 +132,21 @@
 
 .photoGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 18px;
   margin-top: 18px;
+  max-width: 100%;
+  justify-items: center;
+}
+@media (max-width: 900px) {
+  .photoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .photoGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .photoItem {
@@ -154,4 +166,22 @@
 .photoItem:hover {
   transform: translateY(-6px) scale(1.03);
   box-shadow: 0 6px 24px rgba(25, 118, 210, 0.15);
+}
+
+.previewRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  max-width: 100%;
+  overflow: hidden;
+}
+.previewImg {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #eee;
+  border: 1px solid #e0e0e0;
+  flex-shrink: 0;
 } 

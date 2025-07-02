@@ -11,7 +11,28 @@ conn = psycopg2.connect(
     port=5432
 )
 cur = conn.cursor()
+# ---- Đẩy dữ liệu vào bảng products
+with open('product_selected.json', 'r', encoding = 'utf-8') as f:
+    products = json.load(f)
 
+product_rows= []
+for item in products:
+    product_id = item.get("Mã vật tư")
+    name = item.get("Tên vật tư")
+    group_name = item.get("Nhóm")
+    product_type = item.get("Phân loại vật tư")
+    if not product_id:
+        continue
+    product_rows.append((product_id, name, group_name, product_type))
+
+sql_product = """
+INSERT INTO products (id, name, group_name, product_type)
+VALUES (%s, %s, %s, %s)
+ON CONFLICT (id) DO NOTHING;
+"""
+execute_batch(cur, sql_product, product_rows)
+conn.commit()
+print(f"Đã import {len(product_rows)} bản ghi vào orders.")
 # --- Đẩy dữ liệu vào bảng orders ---
 with open('order_selected.json', 'r', encoding='utf-8') as f:
     orders = json.load(f)
@@ -33,28 +54,10 @@ execute_batch(cur, sql_order, order_rows)
 conn.commit()
 print(f"Đã import {len(order_rows)} bản ghi vào orders.")
 
-# --- Đẩy dữ liệu vào bảng products từ order_detail_selected.json ---
+# --- Đẩy dữ liệu vào bảng order_details ---
 with open('order_detail_selected.json', 'r', encoding='utf-8') as f:
     order_details = json.load(f)
     
-product_ids = set()
-for item in order_details:
-    pid = item.get("Mã vật tư (text)")
-    if pid:
-        product_ids.add(pid)
-
-product_rows = [(pid,) for pid in product_ids]
-
-sql_product = """
-INSERT INTO products (id)
-VALUES (%s)
-ON CONFLICT (id) DO NOTHING;
-"""
-execute_batch(cur, sql_product, product_rows)
-conn.commit()
-print(f"Đã import {len(product_rows)} bản ghi vào products.")
-
-# --- Đẩy dữ liệu vào bảng order_details ---
 order_detail_rows = []
 for item in order_details:
     id_detail = item.get("ID_Detail")

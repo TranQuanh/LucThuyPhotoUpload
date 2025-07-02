@@ -61,6 +61,18 @@ function FolderDetail(props) {
     photo.filename.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Group by order_id, group ảnh không có order_id xuống cuối
+  const groupedPhotos = filteredPhotos.reduce((acc, photo) => {
+    let key = photo.order_id;
+    if (!key || key === 'null' || key === 'undefined' || key === '') key = '__NO_ORDER__';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(photo);
+    return acc;
+  }, {});
+  // Sắp xếp: các group order_id thật lên trước, group '__NO_ORDER__' xuống cuối
+  const groupOrder = Object.keys(groupedPhotos).filter(k => k !== '__NO_ORDER__').sort();
+  if (groupedPhotos['__NO_ORDER__']) groupOrder.push('__NO_ORDER__');
+
   return (
     <div>
       <button className={styles.backButton} onClick={() => navigate(-1)}>← Quay lại</button>
@@ -72,28 +84,37 @@ function FolderDetail(props) {
         onChange={e => setSearchTerm(e.target.value)}
         style={{ margin: '10px 0', padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc', width: 250 }}
       />
-      <div className={styles.photoGrid}>
-        {filteredPhotos.map(photo => (
-          <div className={styles.photoItem} key={photo.id}>
-            <div style={{ position: 'relative' }}>
-              <img
-                src={`http://localhost:5000/uploads/${productId}/${photo.filename}`}
-                alt=""
-                onClick={() => handlePreview(photo)}
-                style={{ cursor: 'pointer' }}
-              />
-              <button className={styles.menuButton} style={{ position: 'absolute', top: 6, right: 6 }} onClick={e => { e.stopPropagation(); handleMenuOpen(photo.id); }}>⋮</button>
-              {menuOpen === photo.id && (
-                <div className={styles.menuPopup} onMouseLeave={handleMenuClose}>
-                  <button className={styles.menuItem} onClick={() => handleDelete(photo)}>Xóa</button>
-                  <button className={styles.menuItem} onClick={() => handleDownload(photo)}>Tải xuống</button>
-                </div>
-              )}
-            </div>
-            <div style={{ textAlign: 'center', marginTop: 6, fontSize: 15 }}>{photo.filename}</div>
+      {/* Group by order_id, group không có mã đơn xuống cuối */}
+      {groupOrder.length === 0 && <div>Không có ảnh nào.</div>}
+      {groupOrder.map(orderId => (
+        <div key={orderId} style={{ marginBottom: 32 }}>
+          <div style={{ fontWeight: 600, fontSize: 17, color: '#1976d2', margin: '18px 0 10px 0' }}>
+            {orderId === '__NO_ORDER__' ? 'Khác (Không có mã đơn)' : `Mã đơn hàng: ${orderId}`}
           </div>
-        ))}
-      </div>
+          <div className={styles.photoGrid}>
+            {groupedPhotos[orderId].map(photo => (
+              <div className={styles.photoItem} key={photo.id}>
+                <div style={{ position: 'relative' }}>
+                  <img
+                    src={`http://localhost:5000/uploads/${productId}/${photo.filename}`}
+                    alt=""
+                    onClick={() => handlePreview(photo)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <button className={styles.menuButton} style={{ position: 'absolute', top: 6, right: 6 }} onClick={e => { e.stopPropagation(); handleMenuOpen(photo.id); }}>⋮</button>
+                  {menuOpen === photo.id && (
+                    <div className={styles.menuPopup} onMouseLeave={handleMenuClose}>
+                      <button className={styles.menuItem} onClick={() => handleDelete(photo)}>Xóa</button>
+                      <button className={styles.menuItem} onClick={() => handleDownload(photo)}>Tải xuống</button>
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 6, fontSize: 15 }}>{photo.filename}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
       {preview && (
         <div
           style={{

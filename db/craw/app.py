@@ -5,7 +5,7 @@ import time
 
 # from crawl_customer.crawl_table_1 import crawl_customer_from_lark
 # from crawl_employee.crawl_table_9 import crawl_employee_from_lark
-# from crawl_product.crawl_table_5 import crawl_product_from_lark
+from crawl_product.crawl_table_5 import crawl_product_from_lark
 # from crawl_worker.crawl_table_6 import crawl_worker_from_lark
 # from crawl_transport.crawl_table_7 import crawl_transport_from_lark
 # from crawl_import.crawl_table_8 import crawl_import_from_lark
@@ -29,6 +29,15 @@ from config.lark_config.api_params import *
 
 
 raw_output_file_path = 'output_1_record_raw/product_raw_full.jsonl'
+
+ORDER_DETAIL_PATH = 'order_detail_selected.json'
+ORDER_PATH = 'order_selected.json'
+PRODUCT_PATH = 'product_selected.json'
+def remove_old_jsons():
+    for path in [ORDER_DETAIL_PATH, ORDER_PATH, PRODUCT_PATH]:
+        if os.path.exists(path):
+            os.remove(path)
+            print(f"Đã xóa {path}")
 
 def crawl_xyz_from_lark():
     url = "https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal/"
@@ -113,6 +122,7 @@ def load_json(json_path):
 
 
 if __name__ == "__main__":
+    remove_old_jsons()
     # crawl_xyz_from_lark() 
     # get_image()
     start_time = time.time()
@@ -126,8 +136,8 @@ if __name__ == "__main__":
     # crawl_worker_from_lark()
     # # Bang 8
     # crawl_import_from_lark()
-    # # Bang 5
-    # crawl_product_from_lark()
+    # Bang 5
+    crawl_product_from_lark()
     # # Bang 5_2
     # # crawl_product_price_from_lark()
     # # Bang duyet chi
